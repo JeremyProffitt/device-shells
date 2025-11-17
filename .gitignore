@@ -1,0 +1,20 @@
+# Generated 3D model files
+*.stl
+*.obj
+*.3mf
+*.amf
+
+# Generated image renders
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# OpenSCAD backup files
+*.scad~
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
