@@ -80,3 +80,20 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Delete old releases (keep only 5 most recent)
+        run: |
+          echo "Checking for old releases to delete..."
+          # Get all releases, sort by creation date, keep only the 5 most recent
+          gh release list --limit 100 --json tagName,createdAt,isDraft,isPrerelease | \
+          jq -r '.[] | select(.isDraft == false and .isPrerelease == false) | "\(.createdAt)\t\(.tagName)"' | \
+          sort -r | \
+          tail -n +6 | \
+          cut -f2 | \
+          while read tag; do
+            echo "Deleting old release: $tag"
+            gh release delete "$tag" --yes --cleanup-tag
+          done
+          echo "Cleanup complete"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
