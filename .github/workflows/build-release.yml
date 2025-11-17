@@ -1,4 +1,4 @@
-name: Build and Release STL Files
+name: Build and Release STL Files and Images
 
 on:
   push:
@@ -40,13 +40,41 @@ jobs:
             fi
           done
 
+      - name: Generate PNG renders
+        run: |
+          find . -name "*.scad" -type f -not -path "./.git/*" | while read scad_file; do
+            filename=$(basename "$scad_file" .scad)
+            iso_file="output/${filename}-iso.png"
+            back_file="output/${filename}-back.png"
+
+            echo "Generating isometric view: $iso_file"
+            openscad -o "$iso_file" --render --autocenter --viewall --imgsize=1920,1080 --colorscheme=Nature -D '$fn=100' -D '$fa=1' -D '$fs=0.1' "$scad_file"
+            if [ $? -eq 0 ]; then
+              echo "✓ Successfully generated $iso_file"
+            else
+              echo "✗ Failed to generate $iso_file"
+              exit 1
+            fi
+
+            echo "Generating back view: $back_file"
+            openscad -o "$back_file" --render --autocenter --viewall --imgsize=1920,1080 --colorscheme=Nature --camera=0,0,0,55,0,205,350 -D '$fn=100' -D '$fa=1' -D '$fs=0.1' "$scad_file"
+            if [ $? -eq 0 ]; then
+              echo "✓ Successfully generated $back_file"
+            else
+              echo "✗ Failed to generate $back_file"
+              exit 1
+            fi
+          done
+
       - name: List generated files
         run: ls -lh output/
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          files: output/*.stl
+          files: |
+            output/*.stl
+            output/*.png
           generate_release_notes: true
           draft: false
           prerelease: false
