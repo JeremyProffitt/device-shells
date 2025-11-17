@@ -82,17 +82,26 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Delete old releases (keep only 5 most recent)
+        continue-on-error: true
         run: |
           echo "Checking for old releases to delete..."
           # Get all releases, sort by creation date, keep only the 5 most recent
-          gh release list --limit 100 --json tagName,createdAt,isDraft,isPrerelease | \
+          RELEASES=$(gh release list --limit 100 --json tagName,createdAt,isDraft,isPrerelease 2>&1)
+          if [ $? -ne 0 ]; then
+            echo "Failed to list releases: $RELEASES"
+            exit 0
+          fi
+
+          echo "$RELEASES" | \
           jq -r '.[] | select(.isDraft == false and .isPrerelease == false) | "\(.createdAt)\t\(.tagName)"' | \
           sort -r | \
           tail -n +6 | \
           cut -f2 | \
           while read tag; do
-            echo "Deleting old release: $tag"
-            gh release delete "$tag" --yes --cleanup-tag
+            if [ -n "$tag" ]; then
+              echo "Deleting old release: $tag"
+              gh release delete "$tag" --yes --cleanup-tag || echo "Failed to delete $tag"
+            fi
           done
           echo "Cleanup complete"
         env:
