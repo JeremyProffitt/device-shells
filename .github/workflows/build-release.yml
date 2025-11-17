@@ -1,0 +1,54 @@
+name: Build and Release STL Files
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v1.0.0
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required for creating releases
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install OpenSCAD
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openscad
+
+      - name: Verify OpenSCAD installation
+        run: openscad --version
+
+      - name: Build STL files
+        run: |
+          mkdir -p output
+          find . -name "*.scad" -type f -not -path "./.git/*" | while read scad_file; do
+            filename=$(basename "$scad_file" .scad)
+            stl_file="output/${filename}.stl"
+            echo "Building $stl_file from $scad_file"
+            openscad -o "$stl_file" --render -D '$fn=100' -D '$fa=1' -D '$fs=0.1' "$scad_file"
+            if [ $? -eq 0 ]; then
+              echo "✓ Successfully built $stl_file"
+            else
+              echo "✗ Failed to build $stl_file"
+              exit 1
+            fi
+          done
+
+      - name: List generated files
+        run: ls -lh output/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: output/*.stl
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
